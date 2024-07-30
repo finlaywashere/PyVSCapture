@@ -6,8 +6,8 @@ class UDPConnection:
     """
     Connects to a target device over port 24105
     """
-    def __init__(self, ip, port=24105)
-        self._socket = socket.socket(socket.AF_INET, socker.SOCK_DGRAM)
+    def __init__(self, ip, port=24105):
+        self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._socket.settimeout(1.0)
         self._remote = (ip, port)
         self._associate()
