@@ -1,6 +1,6 @@
 import socket
 
-import udpconstants as constants
+import transport.udpconstants as constants
 
 class UDPConnection:
     """
@@ -8,7 +8,7 @@ class UDPConnection:
     """
     def __init__(self, ip, port=24105):
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self._socket.settimeout(1.0)
+        self._socket.settimeout(3.0)
         self._remote = (ip, port)
         self._associate()
 
@@ -33,26 +33,30 @@ class UDPConnection:
         """
         Receives a full packet from the device
         """
-        header = self.recv(2)
-        data = []
-        data += header
-        if header[1] == 0xFF:
-            len_bytes = self.recv(2)
-            data += len_bytes
-            length = len_bytes[0] << 8 | len_bytes[1]
-            data += self.recv(length)
-        else:
-            data += self.recv(header[1])
+        data = self.recv(3000)
+        #header = self.recv(2)
+        #data = []
+        #data += header
+        #if header[1] == 0xFF:
+        #    len_bytes = self.recv(2)
+        #    data += len_bytes
+        #    length = len_bytes[0] << 8 | len_bytes[1]
+        #    data += self.recv(length)
+        #else:
+        #    data += self.recv(header[1])
+        print("TP:", len(data))
         return data
 
     def _associate(self) -> bool:
         """
         Sets up communication with the device
         """
+        print("ASSOC_SEND")
         self.send(constants.ASSOCIATE)
         # We're assuming that if its successful we have negotiated the options we selected (only sent 1 option)
         # Header flags: 0x0E = Success, 0x0C = Refuse
         header = self._recv_packet()
+        print("ASSOC_RECV", header[0] == 0x0E)
         if header[0] == 0x0E: # Check for success
             return True
         return False

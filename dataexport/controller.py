@@ -1,5 +1,5 @@
 import datetime
-from avaparser import parse_value, parse_u16, parse_u32
+from dataexport.avaparser import parse_value, parse_u16, parse_u32
 
 class DataExportController:
 
@@ -17,12 +17,13 @@ class DataExportController:
 
         This may be wrong as there are multiple length fields and they are confusing
         """
-        header = self._transport.recv(8)
-        data = []
-        data += header
+        data = self._transport.recv(3000)
+        #data = []
+        #data += header
         # u16 session_id, u16 context_id, u16 ro_type, u16 length
-        length = parse_u16(header, 6)
-        data += self._transport.recv(length)
+        #length = parse_u16(header, 6)
+        #data += self._transport.recv(length)
+        print("DE:", len(data))
         return data
 
     def _send(self, data):
@@ -36,6 +37,7 @@ class DataExportController:
         Processes a MDS create event and sends back a mds create event result to finish association
         """
         mds_create_event = self._recv_packet()
+        print("MDS_RECV")
         # Invoke id is the 5th u16 in the header
         # header[8] and [9] contain invoke id
         managed_object = mds_create_event[14:20] # Slice out the 6 byte managed object info from event report argument
@@ -50,33 +52,44 @@ class DataExportController:
                      ]
         self._epoch = datetime.datetime.now()
         self._send(response)
+        print("MDS_SEND")
         self._poll_number = 0
 
     def _decode_poll_data(self, result):
         # Timestamp starts at index 25 and is u32
+        if len(result) < 26:
+            print("Invalid poll received")
+            return None
         rel_timestamp = result[25] << 24 | result[26] << 16 | result[27] << 8 | result[28]
         # Actual data starts after 46 bytes (index 45)
         count = result[45] << 8 | result[46] # Poll info count
         index = 48
         data = []
         for i in range(count): # Loop through all SingleContextPoll's
+            if index >= len(result):
+                break
             index += 2 # Skip over mds context
             poll_count = result[index] << 8 | result[index + 1]
             index += 4 # Skip over count and length
             context_data = []
             for j in range(poll_count): # Loop through all ObservationPoll's
+                if index >= len(result):
+                    break
                 handle = result[index] << 8 | result[index + 1]
                 index += 2
                 ava_count = result[index] << 8 | result[index + 1] # Count of Attribute Value Assertions within Observation Poll
                 index += 4 # Skip over count and length
                 observation_data = []
                 for k in range(ava_count): # Loop through AVA's
+                    if index >= len(result):
+                        break
                     attr = parse_value(result[index:])
                     index += 4 + attr[1]
-                    observation_data.append(attr)
+                    if attr[1] != 0:
+                        observation_data.append(attr)
                 context_data.append(observation_data)
             data.append(context_data)
-
+        return data
 
     def _poll(self, partition, code):
         """

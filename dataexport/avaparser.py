@@ -25,7 +25,8 @@ def parse_value(data):
     XXX value
     """
     attr_id = parse_u16(data, 0)
-    length = parse_u16(data, 2)
+    print("ATTR", data[0], data[1])
+    length = parse_u16(data, 2)-4
     if attr_id == 0x0950:
         # Numerical observation
         # u16 physio_id, u16 state, u16 unit, float value
@@ -57,3 +58,10 @@ def parse_value(data):
             length = parse_u16(data, index + 16)
             index += 16 + length
         return ("alarm", length+4, entries)
+    else:
+        datas = ""
+        for i in range(length):
+            if i+4 >= len(data):
+                break
+            datas += str(data[i]+4) + " "
+        return ("unk_" + str(attr_id), length+4, datas)
